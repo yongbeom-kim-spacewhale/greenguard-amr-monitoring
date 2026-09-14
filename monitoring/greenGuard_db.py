@@ -1,6 +1,7 @@
 import os
 from re import L
 import sqlite3
+from werkzeug.security import check_password_hash, generate_password_hash
 from tkinter import EXCEPTION
 
 # =================================================================
@@ -65,14 +66,22 @@ class GreenGuardDB:
         with sqlite3.connect(self.db_name) as conn:
             cursor = conn.cursor()
             # 관리자 계정이 없다면 생성
-            cursor.execute('INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)', ('admin', '1234'))
+            username = os.getenv("GREENGUARD_ADMIN_USERNAME")
+            password = os.getenv("GREENGUARD_ADMIN_PASSWORD")
+            if not username or not password:
+                return
+            cursor.execute(
+                'INSERT OR IGNORE INTO users (username, password) VALUES (?, ?)',
+                (username, generate_password_hash(password)),
+            )
             conn.commit()
         
     def verify_user(self, username, password):
         # 로그인 검증용 로직
         cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM users WHERE username = ? and password = ?', (username, password))
-        return cursor.fetchone() is not None
+        cursor.execute('SELECT password FROM users WHERE username = ?', (username,))
+        row = cursor.fetchone()
+        return row is not None and check_password_hash(row['password'], password)
 
     def insert_detection_log(self, image_name, log_time, pos_x, pos_y):
         # 터틀봇 이벤트 발생 시 로그 적재

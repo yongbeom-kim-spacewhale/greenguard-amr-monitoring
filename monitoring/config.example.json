@@ -1,5 +1,5 @@
 {
-  "secret_key": "change-this-secret",
+  "secret_key": "",
   "db_path": "./greenguard.db",
   "template_folder": "template",
   "static_folder": "static",
