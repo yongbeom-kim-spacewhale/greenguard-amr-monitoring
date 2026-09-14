@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GreenGuard 관제 대시보드</title>
+    <style>
+        /* 1. 기본 스타일 및 레이아웃 정의 */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f6fa;
+            color: #2f3640;
+        }
+
+        /* 목업 전체를 감싸는 메인 컨테이너 (width 760px 기반 비율 확장) */
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            border: 1px solid #dcdde1;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            padding: 25px;
+        }
+
+        /* 2. 상단 바 (탭 메뉴 및 배터리 상태 영역) */
+        .top-navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid #edf2f7;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .tab-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* 목업의 Camera/DB 탭 버튼 스타일 */
+        .tab-btn {
+            padding: 10px 24px;
+            font-size: 15px;
+            font-weight: bold;
+            border: 1px solid #dcdde1;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            background-color: #2ecc71;
+            color: white;
+            border-color: #2ecc71;
+        }
+
+        /* 목업 우측 상단 Battery Status 스타일 */
+        .battery-status {
+            font-size: 14px;
+            font-weight: bold;
+            background-color: #f1f2f6;
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid #ced6e0;
+            color: #2f3542;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* 3. 탭 콘텐츠 영역 관리 */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* 4. [탭 1] 4분할 모니터링 그리드 (Camera 1, 2 / Robot 1, 2) */
+        .camera-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .monitor-box {
+            background-color: #1e272e;
+            border-radius: 8px;
+            aspect-ratio: 16 / 9;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #3d3d3d;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
+            overflow: hidden;
+        }
+
+        /* 영상 수신 실패 시 렌더링될 NO SIGNAL 레이블 (목업 사양 반영) */
+        .no-signal-overlay {
+            color: #ffdd59;
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px rgba(255,221,89,0.6);
+        }
+
+        /* 각 분할 창 하단 이름 태그 */
+        .box-label {
+            position: absolute;
+            bottom: 10px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.75);
+            color: #ffffff;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 4px;
+            border-left: 3px solid #2ecc71;
+        }
+
+        /* 5. [탭 1] 하단 Debug 버튼 7개 일렬 배열 하이브리드 패널 */
+        .debug-control-panel {
+            background: #f1f2f6;
+            border: 1px solid #ced6e0;
+            border-radius: 8px;
+            padding: 18px;
+        }
+
+        .debug-panel-title {
+            margin-top: 0;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: #57606f;
+            font-weight: bold;
+        }
+
+        .debug-btn-container {
+            display: flex;
+            justify-content: space-between; /* 7개 버튼 일렬 균등 분할 */
+            gap: 8px;
+        }
+
+        .debug-btn {
+            flex: 1;
+            padding: 12px 0;
+            font-size: 13px;
+            font-weight: bold;
+            color: white;
+            background-color: #34495e;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            text-align: center;
+            transition: background 0.1s ease;
+        }
+
+        .debug-btn:hover {
+            background-color: #2c3e50;
+        }
+
+        /* 6. [탭 2] DB 테이블 및 이미지 미리보기 레이아웃 */
+        .db-layout {
+            display: flex;
+            gap: 25px;
+        }
+
+        .db-table-zone {
+            flex: 1.4;
+            background: #ffffff;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            padding: 15px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .db-preview-zone {
+            flex: 1;
+            background: #ffffff;
+            border: 1px solid #dcdde1;
+            border-radius: 6px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        th {
+            background-color: #f8f9fa;
+            color: #747d8c;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        tr:hover {
+            background-color: #f1f2f6;
+            cursor: pointer;
+        }
+
+        .image-preview-box {
+            flex: 1;
+            background-color: #eaeded;
+            border: 2px dashed #ced6e0;
+            border-radius: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #747d8c;
+            font-weight: bold;
+            min-height: 300px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        
+        <header class="top-navbar">
+            <div class="tab-group">
+                <button class="tab-btn active" onclick="switchTab(event, 'tab-main_page')">Main Page</button>
+                <button class="tab-btn" onclick="switchTab(event, 'tab-db')">DB</button>
+            </div>
+            
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="battery-status">
+                    🔋 Robot 1 Battery: <span id="robot1-bat-text" style="color: #2ecc71;">0%</span>
+                </div>
+                <div style="font-size: 13px; color: #747d8c;">📍 위치: <span id="robot1-amcl_pose-txt" style="font-family: monospace;">X: 0.00, Y: 0.00</span></div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <div class="battery-status">
+                    🔋 Robot 2 Battery: <span id="robot2-bat-text" style="color: #2ecc71;">0%</span>
+                </div>
+                <div style="font-size: 13px; color: #747d8c;">📍 위치: <span id="robot2-amcl_pose-txt" style="font-family: monospace;">X: 0.00, Y: 0.00</span></div>
+            </div>
+            
+            <div style="font-size: 14px; color: #2c3e50; font-weight: bold;">👤 관리자: {{ username }}님</div>
+        </header>
+
+        <div id="tab-main_page" class="tab-content active">
+            <div class="camera-grid">
+                <div class="monitor-box">
+                    <img id="stream-cam1" 
+                        src="{{ url_for('video_feed', cam_id='cam1') }}" 
+                        onerror="setTimeout(() => { this.src='/video_feed?cam_id=cam1&t=' + new Date().getTime(); }, 5000);"
+                        alt="Camera 1 Stream" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="box-label">Camera 1 (Fixed)</div>
+                </div>
+                <div class="monitor-box">
+                    <img id="stream-robot1" 
+                        src="{{ url_for('video_feed', cam_id='robot1') }}" 
+                        onerror="setTimeout(() => { this.src='/video_feed?cam_id=robot1&t=' + new Date().getTime(); }, 5000);"
+                        alt="Robot 1 Stream" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="box-label">Robot 1 (TurtleBot)</div>
+                </div>
+                <div class="monitor-box">
+                    <img id="stream-cam2" 
+                        src="{{ url_for('video_feed', cam_id='cam2') }}"
+                        onerror="setTimeout(() => { this.src='/video_feed?cam_id=cam2&t=' + new Date().getTime(); }, 5000);" 
+                        alt="Camera 2 Stream" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="box-label">Camera 2 (Fixed)</div>
+                </div>
+                <div class="monitor-box">
+                    <img id="stream-robot2" 
+                        src="{{ url_for('video_feed', cam_id='robot2') }}" 
+                        onerror="setTimeout(() => { this.src='/video_feed?cam_id=robot2&t=' + new Date().getTime(); }, 5000);"
+                        alt="Robot 2 Stream" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="box-label">Robot 2 (TurtleBot)</div>
+                </div>
+            </div>
+
+            <div class="debug-control-panel">
+                <div class="debug-panel-title">ROS 2 하드웨어 원격 디버그 명령 엔드포인트</div>
+                <div class="debug-btn-container">
+                    <button class="debug-btn" style="background-color: #e67e22;" onclick="triggerDebug(1)">수동 스냅샷 촬영 & DB 저장</button>
+                    <button class="debug-btn" style="background-color: #c0392b;" onclick="triggerDebug(2)">2번 로봇 강제 언도킹</button>                    
+                    <button class="debug-btn" style="background-color: #9b59b6;" onclick="triggerDebug(3)">시간 토픽 발송</button>
+                    <button class="debug-btn" onclick="triggerDebug(4)">Debug 4</button>
+                    <button class="debug-btn" onclick="triggerDebug(5)">Debug 5</button>
+                    <button class="debug-btn" onclick="triggerDebug(6)">Debug 6</button>
+                    <button class="debug-btn" onclick="triggerDebug(7)">Debug 7</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-db" class="tab-content">
+            <div class="db-layout">
+                <div class="db-table-zone">
+                    <h3 style="margin-top:0; color:#2c3e50; display: flex; justify-content: space-between; align-items: center;">
+                        <span>데이터베이스 로그 리스트</span>
+                    </h3>
+                    
+                    <div style="margin-bottom: 15px; display: flex; gap: 8px; align-items: center;">
+                        <input type="date" id="search-date-input" style="padding: 6px 10px; border: 1px solid #ced6e0; border-radius: 4px;">
+                        <button onclick="executeDateSearch()" style="padding: 6px 14px; background:#2ecc71; color:white; border:none; border-radius: 4px; font-weight:bold; cursor:pointer;">검색</button>
+                        <button onclick="resetSearch()" style="padding: 6px 14px; background:#747d8c; color:white; border:none; border-radius: 4px; font-weight:bold; cursor:pointer;">초기화</button>
+                    </div>
+    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Image Name</th>
+                                <th>Timestamp</th>
+                                <th>Location (X, Y)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="log-tbody">
+                            {% if not logs %}
+                                <tr>
+                                    <td colspan="4" style="text-align: center; color: #747d8c;">적재된 감지 로그 데이터가 없습니다.</td>
+                                </tr>
+                            {% else %}
+                                {% for log in logs %}
+                                    <tr onclick="showPreview('{{ log.image_name }}')">
+                                        <td>{{ log.id }}</td>
+                                        <td>{{ log.image_name }}</td>
+                                        <td>{{ log.log_time }}</td>
+                                        <td>X: {{ "%.2f"|format(log.pos_x|float) }}, Y: {{ "%.2f"|format(log.pos_y|float) }}</td>
+                                    </tr>
+                                {% endfor %}
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="db-preview-zone">
+                    <h3 style="margin-top:0; color:#2c3e50;">이벤트 스냅샷 미리보기</h3>
+                    <div class="image-preview-box" id="preview-frame">
+                        좌측 테이블 행을 누르면 이 공간에 사진이 출력됩니다.
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="reserve-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 25px; border-radius: 10px; width: 350px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);">
+            <h3 style="margin-top: 0; color: #2c3e50;">🕒 반복 간격 예약 설정</h3>
+            <p style="font-size: 13px; color: #747d8c; margin-bottom: 20px;">토픽 발신을 예약할 시간과 분을 지정하세요.</p>
+            
+            <div style="display: flex; gap: 10px; align-items: center; justify-content: center; margin-bottom: 25px;">
+                <input type="number" id="modal-hours" min="0" max="23" value="0" style="width: 60px; padding: 8px; border: 1px solid #ced6e0; border-radius: 4px; text-align: center; font-size: 16px; font-weight: bold;">
+                <span>시간</span>
+                <input type="number" id="modal-minutes" min="0" max="59" value="0" style="width: 60px; padding: 8px; border: 1px solid #ced6e0; border-radius: 4px; text-align: center; font-size: 16px; font-weight: bold;">
+                <span>분</span>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                <button onclick="closeReserveModal()" style="padding: 8px 14px; background: #747d8c; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">취소</button>
+                <button onclick="submitReserveTopic()" style="padding: 8px 14px; background: #34495e; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;">예약 등록</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isSearchMode = false;
+
+        window.onload = function() {
+            setInterval(updateLogsRealtime, 3000); 
+            setInterval(updateStatusRealTime, 3000);
+        };
+
+        function updateStatusRealTime() {
+            fetch('/api/robot_status')
+                .then(response => response.json())
+                .then(data => {
+                    const r1Bat = document.getElementById('robot1-bat-text');
+                    const r2Bat = document.getElementById('robot2-bat-text');
+                    
+                    if (data.robot1_amcl_pose) {
+                        const r1_x = parseFloat(data.robot1_amcl_pose.x).toFixed(2);
+                        const r1_y = parseFloat(data.robot1_amcl_pose.y).toFixed(2);
+                        document.getElementById('robot1-amcl_pose-txt').innerText = `X: ${r1_x}, Y: ${r1_y}`;
+                    }
+                
+                    if (data.robot2_amcl_pose) {
+                        const r2_x = parseFloat(data.robot2_amcl_pose.x).toFixed(2);
+                        const r2_y = parseFloat(data.robot2_amcl_pose.y).toFixed(2);
+                        document.getElementById('robot2-amcl_pose-txt').innerText = `X: ${r2_x}, Y: ${r2_y}`;
+                    }
+
+                    if(r1Bat) {
+                        r1Bat.innerText = data.robot1_battery + '%';
+                        r1Bat.style.color = data.robot1_battery < 20 ? '#e74c3c' : '#2ecc71';
+                    }
+                    if(r2Bat) {
+                        r2Bat.innerText = data.robot2_battery + '%';
+                        r2Bat.style.color = data.robot2_battery < 20 ? '#e74c3c' : '#2ecc71';
+                    }
+                })
+                .catch(error => console.error('배터리 및 위도 정보 갱신 실패:', error));
+        }
+        
+        function updateLogsRealtime() {
+            if (isSearchMode) return;
+
+            fetch('/api/logs')
+                .then(response => response.json())
+                .then(logs => {
+                    const tbody = document.getElementById('log-tbody');
+
+                    if (logs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #747d8c;">적재된 감지 로그 데이터가 없습니다.</td></tr>`;
+                        return;
+                    }
+
+                    let htmlContent = '';
+                    logs.forEach(log => {
+                        const x_val = log.pos_x !== undefined ? parseFloat(log.pos_x).toFixed(2) : '0.00';
+                        const y_val = log.pos_y !== undefined ? parseFloat(log.pos_y).toFixed(2) : '0.00';
+                    
+                        htmlContent += `
+                            <tr onclick="showPreview('${log.image_name}')">
+                                <td>${log.id}</td>
+                                <td>${log.image_name}</td>
+                                <td>${log.log_time}</td>
+                                <td>X: ${x_val}, Y: ${y_val}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = htmlContent;
+                })
+                .catch(error => console.error('AJAX 로그 갱신 실패:', error));
+        }
+
+        function executeDateSearch() {
+            const dateVal = document.getElementById('search-date-input').value;
+            if (!dateVal) {
+                alert('조회할 날짜를 선택해주세요!');
+                return;
+            }
+        
+            isSearchMode = true;
+        
+            fetch(`/api/logs/search?date=${dateVal}`)
+                .then(response => response.json())
+                .then(logs => {
+                    const tbody = document.getElementById('log-tbody');
+
+                    if (logs.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: #e74c3c; font-weight:bold;">📅 ${dateVal} 에 적재된 감지 데이터가 없습니다.</td></tr>`;
+                        return;
+                    }
+                
+                    let htmlContent = '';
+                    logs.forEach(log => {
+                        const x_val = log.pos_x !== undefined ? parseFloat(log.pos_x).toFixed(2) : '0.00';
+                        const y_val = log.pos_y !== undefined ? parseFloat(log.pos_y).toFixed(2) : '0.00';
+
+                        htmlContent += `
+                            <tr onclick="showPreview('${log.image_name}')">
+                                <td>${log.id}</td>
+                                <td>${log.image_name}</td>
+                                <td>${log.log_time}</td>
+                                <td>X: ${x_val}, Y: ${y_val}</td>
+                            </tr>
+                        `;
+                    });
+                    tbody.innerHTML = htmlContent;
+                })
+                .catch(error => console.error('날짜 검색 통신 실패:', error));
+        }
+
+        function switchTab(event, tabId) {
+            const contents = document.querySelectorAll('.tab-content');
+            contents.forEach(content => content.classList.remove('active'));
+
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+
+            document.getElementById(tabId).classList.add('active');
+            event.currentTarget.classList.add('active');
+        }
+
+        function triggerDebug(buttonId) {
+            console.log(`디버그 명령 전송 시도. ID: ${buttonId}`);
+
+            if (buttonId === 1) {
+                fetch('/api/debug/debug_capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(`[성공] ${data.message}`);
+                        updateLogsRealtime();
+                    } else {
+                        alert(`[실패] ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('디버그 요청 통신 에러:', error);
+                    alert('서버와 원격 제어 통신 중 예외가 발생했습니다.');
+                });
+            } 
+            else if (buttonId === 2) {
+                fetch('/api/debug/robot2/force_undock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alert(`[성공] ${data.message}`);
+                    } else {
+                        alert(`[실패] ${data.message}`);
+                    }
+                })
+                .catch(error => {
+                    console.error('언도킹 요청 통신 에러:', error);
+                    alert('서버와 로봇 제어 통신 중 예외가 발생했습니다.');
+                });
+            }
+            // 🌟 3번 버튼 클릭 시 정상적으로 모달을 디스플레이
+            else if (buttonId === 3) {
+                document.getElementById('reserve-modal').style.display = 'flex';
+            } 
+            else {
+                alert(`Debug ${buttonId} 명령은 현재 엔드포인트 바인딩 준비 중입니다.`);
+            }
+        }
+        
+        function closeReserveModal() {
+            document.getElementById('reserve-modal').style.display = 'none';
+        }
+
+        // 🌟 [최종 교정] 이름 조율 및 모달 ID 타겟팅 동기화 완료
+        function submitReserveTopic() {
+            const hours = parseInt(document.getElementById('modal-hours').value) || 0;
+            const minutes = parseInt(document.getElementById('modal-minutes').value) || 0;
+
+            if (hours === 0 && minutes === 0) {
+                alert('반복 주기는 0시간 0분 이상이어야 전송 가능합니다.');
+                return;
+            }
+
+            // JavaScript 표준 패딩 기법으로 "HH:MM" 텍스트 가공 완료
+            const formattedInterval = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+
+            fetch('/api/debug/reserve_topic', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ interval: formattedInterval }) // 백엔드 라우터 수신 키인 'interval'로 정렬
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert(`[성공] ${data.message}`);
+                    closeReserveModal(); // 성공 시 모달 닫기
+                } else {
+                    alert(`[실패] ${data.message}`);
+                }
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                alert('서버 전송 중 예외가 발생했습니다.');
+            });
+        }
+        
+        function showPreview(imageName) {
+            const previewFrame = document.getElementById('preview-frame');
+            previewFrame.innerHTML = `
+                <div style="text-align:center; width:100%; height:100%; display:flex; flex-direction:column; justify-content:center;">
+                    <img src="/static/images/detection/${imageName}" style="width:100%; max-height:280px; object-fit:contain;" 
+                         onerror="this.src='https://placehold.co/640x480?text=No+Image+File'">
+                    <span style="font-size:12px; color:#747d8c; margin-top:8px;">파일명: ${imageName}</span>
+                </div>
+            `;
+        }
+
+        function resetSearch() {
+            document.getElementById('search-date-input').value = '';
+            isSearchMode = false;
+            updateLogsRealtime();
+        }
+    </script>
+</body>
+</html>
