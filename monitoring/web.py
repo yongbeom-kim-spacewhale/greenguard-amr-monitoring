@@ -43,7 +43,9 @@ with open(src_dir_path / 'config.json', 'r', encoding='utf-8') as f:
 app = Flask(__name__, 
             template_folder=str(src_dir_path / config['template_folder']),
             static_folder=str(src_dir_path / config['static_folder']))
-app.secret_key = str(src_dir_path / config['secret_key']) # 세션 암호화 키 적용
+app.secret_key = os.getenv("GREENGUARD_SECRET_KEY", config.get("secret_key", ""))
+if not app.secret_key or app.secret_key == "change-this-secret":
+    raise RuntimeError("GREENGUARD_SECRET_KEY를 환경변수로 설정하세요.")
 
 # SQLite 데이터베이스 핸들러 초기화 (컨텍스트 매니저 '__with__' 패턴 지원 객체)
 db = GreenGuardDB(src_dir_path / config['db_path'])

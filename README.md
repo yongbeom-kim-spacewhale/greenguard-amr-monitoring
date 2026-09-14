@@ -66,6 +66,18 @@ source install/setup.bash
 
 비전·모니터링에는 `ultralytics`, `opencv-python`, `Flask` 등 Python 의존성이 필요합니다. 모델 경로, 로봇 namespace, DB 경로는 현재 환경에 맞게 확인해야 합니다.
 
+## 웹 인증 설정
+
+웹 관제 실행 전에 관리자 계정과 Flask 세션 키를 환경변수로 설정합니다.
+
+```bash
+export GREENGUARD_ADMIN_USERNAME=admin
+export GREENGUARD_ADMIN_PASSWORD='change-this-password'
+export GREENGUARD_SECRET_KEY='change-this-long-random-secret'
+```
+
+비밀번호는 초기 DB 생성 시 해시로 저장됩니다. 운영 중인 DB의 계정을 바꾸려면 기존 DB를 마이그레이션하거나 새 DB를 생성해야 합니다.
+
 ## 실행
 
 ```bash
